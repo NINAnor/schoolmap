@@ -1,0 +1,14 @@
+# Changes here will be overwritten by Copier
+_commit: v0.0.1
+_src_path: gh:ninanor/python-template
+author_name: bencretois
+debug: false
+default_branch_name: main
+docker: false
+email: benjamin.cretois@nina.no
+project_name: schoolmap
+project_slug: schoolmap
+repo_name: schoolmap
+repo_org: ninanor
+template_type: python
+type_annotations: false
