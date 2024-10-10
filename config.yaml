@@ -1,0 +1,10 @@
+#################################
+############ DATASET ############
+#################################
+
+MASK: "PATH/TO/GEOJSON"
+WMS_URL: "WMS_URL"
+CRS: "EPSG:4326"
+SAVE_IMAGE: True
+IMG_DIR: "PATH/TO/SAVE/IMAGES"
+COCO_JSON_PATH: "PATH/TO/SAVE/COCO_JSON"
