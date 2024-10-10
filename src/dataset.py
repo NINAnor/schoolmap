@@ -4,6 +4,7 @@ import json
 import os
 from io import BytesIO
 
+import backoff
 import geopandas as gpd
 import numpy as np
 import requests
@@ -14,6 +15,7 @@ from shapely.geometry import MultiPolygon, Polygon
 from tqdm import tqdm
 
 
+@backoff.on_exception(backoff.expo, requests.exceptions.HTTPError, max_tries=5)
 def get_image(gdf, item_id, wms_url, crs, save_image, output_path):
     """
     Get the image from WMS and returns a numpy array
@@ -179,4 +181,5 @@ if __name__ == "__main__":
     with open("config.yaml") as f:
         cfgP = yaml.load(f, Loader=yaml.FullLoader)
 
+    main(cfgP)
     main(cfgP)
