@@ -53,7 +53,7 @@ def create_coco_annotations(gdf, output_dir, output_json, label_column="labelTek
         coco_output["images"].append(
             {
                 "id": image_id,
-                "file_name": image_filename,
+                "file_name": image_path,
                 "width": width,
                 "height": height,
             }
