@@ -36,6 +36,8 @@ def rasterize_masks(
     gdf = gpd.read_file(geojson_path)
 
     # Factorize the text labels to get numeric labels
+    gdf = gdf[gdf["labelTekst"] != "1"]
+    gdf = gdf[gdf["labelTekst"] != "1."]
     gdf["label_encoded"], _ = pd.factorize(gdf[label_column])
     gdf["label_encoded"] = gdf["label_encoded"]
 
@@ -91,9 +93,7 @@ def rasterize_masks(
 
         # Save the mask as .tif to ensure saving of negative values
         mask_filename = f"mask_{image_id}.tif"
-        mask_img = Image.fromarray(
-            mask.astype(np.int16)
-        )  # Ensure it's int16 for -1 values
+        mask_img = Image.fromarray(mask.astype(np.int16))
         mask_img.save(os.path.join(output_mask_dir, mask_filename))
 
         print(f"Saved mask: {mask_filename}")
