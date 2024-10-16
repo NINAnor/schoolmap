@@ -79,10 +79,8 @@ def rasterize_masks(
                 for poly in geometry.geoms:
                     shapes.append((poly, row["label_encoded"]))
 
-        # Create an empty mask with the specified output size (resolution)
-        mask = np.zeros((img_height, img_width), dtype=np.uint8)
+        mask = np.full((img_height, img_width), fill_value=-1, dtype=np.int16)
 
-        # Rasterize the geometries into the mask
         mask = rasterize(
             shapes=shapes,
             out_shape=(img_height, img_width),
@@ -91,9 +89,11 @@ def rasterize_masks(
             dtype="int16",
         )
 
-        # Save the mask as a grayscale PNG
-        mask_filename = f"mask_{image_id}.png"
-        mask_img = Image.fromarray(mask)
+        # Save the mask as .tif to ensure saving of negative values
+        mask_filename = f"mask_{image_id}.tif"
+        mask_img = Image.fromarray(
+            mask.astype(np.int16)
+        )  # Ensure it's int16 for -1 values
         mask_img.save(os.path.join(output_mask_dir, mask_filename))
 
         print(f"Saved mask: {mask_filename}")
