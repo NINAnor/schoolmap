@@ -37,6 +37,7 @@ def rasterize_masks(
 
     # Factorize the text labels to get numeric labels
     gdf["label_encoded"], _ = pd.factorize(gdf[label_column])
+    gdf["label_encoded"] = gdf["label_encoded"]
 
     # Ensure the output directory exists
     os.makedirs(output_mask_dir, exist_ok=True)
@@ -86,8 +87,8 @@ def rasterize_masks(
             shapes=shapes,
             out_shape=(img_height, img_width),
             transform=transform,
-            fill=0,
-            dtype="uint8",
+            fill=-1,
+            dtype="int16",
         )
 
         # Save the mask as a grayscale PNG
