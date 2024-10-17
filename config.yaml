@@ -2,9 +2,31 @@
 ############ DATASET ############
 #################################
 
-MASK: "PATH/TO/GEOJSON"
-WMS_URL: "WMS_URL"
+# Data path
+MASK: "PATH/TO/FILE.geosjon"
+MASKS_DIR: "PATH/TO/MASKS_DIR"
+IMG_DIR: "PATH/TO/RETRIEVED_IMGS"
+
+# Data retrieval
+WMS_URL: "https://wms.geonorge.no/skwms1/wms.nib"
 CRS: "EPSG:4326"
 SAVE_IMAGE: True
-IMG_DIR: "PATH/TO/SAVE/IMAGES"
-COCO_JSON_PATH: "PATH/TO/SAVE/COCO_JSON"
+
+################################
+########### TRAINING ###########
+################################
+
+NUM_CLASSES: 8
+NUM_EPOCHS: 1000
+BATCH_SIZE: 8
+LR: 0.0001
+
+# Callbacks
+PATIENCE: 7 # Patience parameter for early stopping
+
+################################
+######### PREDICT ##############
+################################
+
+MODEL_PATH: "PATH/TO/MODEL/model.ckpt"
+PREDICTED_MASKS: "PATH/TO/PREDICTIONS"

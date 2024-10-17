@@ -46,14 +46,54 @@ def preprocess_image(image_path):
     return input_tensor, original_size
 
 
+def apply_ignore_index(predicted_mask, ground_truth_mask, ignore_value=-1):
+    # Ensure both predicted_mask and ground_truth_mask are numpy arrays (if they're tensors)
+    if isinstance(predicted_mask, torch.Tensor):
+        predicted_mask = predicted_mask.cpu().numpy()
+
+    if isinstance(ground_truth_mask, torch.Tensor):
+        ground_truth_mask = ground_truth_mask.cpu().numpy()
+
+    # Set the values in the predicted mask to -1 wherever the ground truth mask is -1
+    predicted_mask[ground_truth_mask == ignore_value] = ignore_value
+
+    return predicted_mask
+
+
+def get_corresponding_mask(image_path, mask_dir):
+    # Get the base name of the image file (e.g., 'image_skl_12.png')
+    image_filename = os.path.basename(image_path)
+
+    # Extract the identifier from the image file (assuming the identifier starts after 'image_' and before '.png')
+    identifier = image_filename.split("image_")[-1].replace(".png", "")
+
+    # Build the corresponding mask filename (e.g., 'mask_skl_12.tif')
+    mask_filename = f"mask_{identifier}.tif"
+
+    # Get the full path to the mask file
+    mask_path = os.path.join(mask_dir, mask_filename)
+
+    # Check if the mask exists
+    if not os.path.exists(mask_path):
+        raise FileNotFoundError(
+            f"Mask file not found for {image_path}. Expected: {mask_path}"
+        )
+
+    return mask_path
+
+
 # Inference and save the predicted mask
-def predict_image(image_path, model, output_mask_path):
+def predict_image(image_path, mask_path, model, output_mask_path):
     input_tensor, original_size = preprocess_image(image_path)
     with torch.no_grad():
         output = model(input_tensor)["out"]
 
     # Get predicted mask
     predicted_mask = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
+
+    # Get GT mask
+    gt_mask = get_corresponding_mask(image_path, mask_path)
+    print(gt_mask)
 
     # Resize predicted mask to the original image size
     mask_resized = Image.fromarray(predicted_mask.astype(np.uint8))
@@ -83,4 +123,4 @@ if __name__ == "__main__":
     model = load_model(cfg["MODEL_PATH"])
 
     # Run prediction and save the mask
-    predict_image(input_image_path, model, cfg["PREDICTED_MASKS"])
+    predict_image(input_image_path, cfg["MASKS_DIR"], model, cfg["PREDICTED_MASKS"])
