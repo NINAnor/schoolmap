@@ -157,6 +157,13 @@ if __name__ == "__main__":
 # recision: 0.7907
 # Recall: 0.7270
 
+# Without augmentation but albumentations:
+# Pixel Accuracy: 0.8778
+# Mean IoU: 0.5277
+# Mean Dice Coefficient: 0.6926
+# Precision: 0.7484
+# Recall: 0.6418
+
 
 # With augmentation
 
@@ -165,3 +172,13 @@ if __name__ == "__main__":
 # Mean Dice Coefficient: 0.3935
 # Precision: 0.5590
 # Recall: 0.2953
+
+
+# With only normalisation
+
+# Average Metrics for all masks:
+# Pixel Accuracy: 0.7626
+# Mean IoU: 0.2935
+# Mean Dice Coefficient: 0.4953
+# Precision: 0.5157
+# Recall: 0.4339

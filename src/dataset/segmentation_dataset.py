@@ -2,7 +2,6 @@ import glob
 
 import numpy as np
 import torch
-import torch.utils
 import torch.utils.data
 from PIL import Image
 from sklearn.model_selection import train_test_split
@@ -14,29 +13,40 @@ class SegmentationDataset(Dataset):
         self,
         image_paths,
         mask_paths,
-        image_transform=None,
-        mask_transform=None,
+        albumentations_transform=None,
+        resize_transform=None,
     ):
         self.image_paths = image_paths
         self.mask_paths = mask_paths
-        self.image_transform = image_transform
-        self.mask_transform = mask_transform
+        self.albumentations_transform = albumentations_transform
+        self.resize_transform = resize_transform
 
     def __len__(self):
         return len(self.image_paths)
 
     def __getitem__(self, idx):
-        img = Image.open(self.image_paths[idx]).convert("RGB")  # Keep as PIL image
+        # Open images as PIL Images
+        img = Image.open(self.image_paths[idx]).convert("RGB")
         mask = Image.open(self.mask_paths[idx])
 
-        if self.image_transform is not None:
-            img = self.image_transform(img)  # Apply image transform to PIL image
+        # Apply torchvision resizing if provided
+        if self.resize_transform is not None:
+            img = self.resize_transform(img)
+            mask = self.resize_transform(mask)
 
-        if self.mask_transform is not None:
-            mask = self.mask_transform(mask)  # Apply mask transform to PIL image
+        # Convert to numpy arrays for albumentations
+        img = np.array(img)
+        mask = np.array(mask)
 
-        mask = mask.squeeze(0)
-        mask = torch.from_numpy(np.array(mask)).long()
+        # Apply albumentations transformations
+        if self.albumentations_transform is not None:
+            augmented = self.albumentations_transform(image=img, mask=mask)
+            img = augmented["image"]
+            mask = augmented["mask"]
+
+            # Convert img and mask to torch tensors
+        img = torch.tensor(img, dtype=torch.float32)
+        mask = torch.tensor(mask, dtype=torch.long)
 
         return img, mask
 
@@ -44,8 +54,8 @@ class SegmentationDataset(Dataset):
 def get_data_loaders(
     image_dir,
     mask_dir,
-    image_transform,
-    mask_transform,
+    albumentations_transform,
+    resize_transform,
     batch_size=8,
     val_split=0.2,
 ):
@@ -60,15 +70,15 @@ def get_data_loaders(
     train_dataset = SegmentationDataset(
         image_paths=train_image_paths,
         mask_paths=train_mask_paths,
-        image_transform=image_transform,
-        mask_transform=mask_transform,
+        albumentations_transform=albumentations_transform,
+        resize_transform=resize_transform,
     )
 
     val_dataset = SegmentationDataset(
         image_paths=val_image_paths,
         mask_paths=val_mask_paths,
-        image_transform=image_transform,
-        mask_transform=mask_transform,
+        albumentations_transform=albumentations_transform,
+        resize_transform=resize_transform,
     )
 
     # Create DataLoaders

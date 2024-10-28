@@ -13,7 +13,7 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torchmetrics.classification import MulticlassJaccardIndex
 
 from dataset.segmentation_dataset import get_data_loaders
-from utils.transforms import image_transform, mask_transform
+from utils.transforms import albumentations_transform, resize_transform
 
 
 def get_deeplabv3_model(num_classes):
@@ -100,8 +100,8 @@ def train(cfg):
         cfg["IMG_DIR"],
         cfg["MASKS_DIR"],
         batch_size=cfg["BATCH_SIZE"],
-        image_transform=image_transform,
-        mask_transform=mask_transform,
+        albumentations_transform=albumentations_transform,
+        resize_transform=resize_transform,
     )
 
     num_classes = cfg["NUM_CLASSES"]
