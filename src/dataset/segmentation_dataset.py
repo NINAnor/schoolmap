@@ -45,9 +45,9 @@ class SegmentationDataset(Dataset):
             mask = augmented["mask"]
 
             # Convert img and mask to torch tensors
-        img = torch.tensor(img, dtype=torch.float32)
-        mask = torch.tensor(mask, dtype=torch.long)
-
+        img = img.clone().detach().float()
+        mask = mask.clone().detach().long()
+        
         return img, mask
 
 
@@ -58,6 +58,7 @@ def get_data_loaders(
     resize_transform,
     batch_size=8,
     val_split=0.2,
+    num_workers=8,
 ):
     image_paths = sorted(glob.glob(image_dir + "/*.png"))
     mask_paths = sorted(glob.glob(mask_dir + "/*.tif"))
@@ -83,10 +84,10 @@ def get_data_loaders(
 
     # Create DataLoaders
     train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=batch_size, shuffle=True
+        train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers
     )
     val_loader = torch.utils.data.DataLoader(
-        val_dataset, batch_size=batch_size, shuffle=False
+        val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers
     )
 
     return train_loader, val_loader
