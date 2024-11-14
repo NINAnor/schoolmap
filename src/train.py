@@ -102,6 +102,7 @@ def train(cfg):
         batch_size=cfg["BATCH_SIZE"],
         albumentations_transform=albumentations_transform,
         resize_transform=resize_transform,
+        num_workers=cfg["NUM_WORKERS"],
     )
 
     num_classes = cfg["NUM_CLASSES"]
