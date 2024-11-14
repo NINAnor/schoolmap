@@ -15,6 +15,7 @@ from torchmetrics.classification import MulticlassJaccardIndex
 from dataset.segmentation_dataset import get_data_loaders
 from utils.transforms import albumentations_transform, resize_transform
 
+torch.backends.cudnn.benchmark = True
 
 def get_deeplabv3_model(num_classes):
     model = models.deeplabv3_resnet50(weights="COCO_WITH_VOC_LABELS_V1")
