@@ -177,7 +177,7 @@ pyrightconfig.json
 
 nina-python-init.py
 info_proj.txt
-lightning_lots/
+lightning_logs/
 config.yaml
 notebooks/
 .vscode/
