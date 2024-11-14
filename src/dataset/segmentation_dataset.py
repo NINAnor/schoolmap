@@ -45,9 +45,9 @@ class SegmentationDataset(Dataset):
             mask = augmented["mask"]
 
             # Convert img and mask to torch tensors
-        img = torch.tensor(img, dtype=torch.float32)
-        mask = torch.tensor(mask, dtype=torch.long)
-
+        img = img.clone().detach().float()
+        mask = mask.clone().detach().long()
+        
         return img, mask
 
 
