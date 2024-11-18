@@ -2,6 +2,13 @@
 
 This repository contains the code necessary to train and run DeepLabV3 on satellite pictures. In particular, for our project we were interested in segmenting school yard in Norway.
 
+## Install the required libraries
+
+```bash
+pip install poetry
+poetry install
+```
+
 ## How to Use
 
 Make sure to adjust the parameters in the config.yaml file to fit your environment and dataset paths before proceeding with the steps below.
@@ -12,7 +19,7 @@ Use the script to download and prepare the satellite images used for training an
 
 ```bash
 
-python3 src/dataset/get_train_images.py
+poetry run python3 src/dataset/get_train_images.py
 ```
 
 2. Rasterize the Masks
@@ -21,7 +28,7 @@ This step converts GeoJSON or vector data into raster format, creating segmentat
 
 ```bash
 
-python3 src/dataset/rasterize_masks.py
+poetry run python3 src/dataset/rasterize_masks.py
 ```
 
 3. Train the Model
@@ -30,7 +37,7 @@ Once the dataset (images and masks) is ready, train the segmentation model using
 
 ```bash
 
-python3 src/train.py
+poetry run python3 src/train.py
 ```
 
 The training script supports early stopping, model checkpoints, and tracks the loss function and evaluation metrics (IoU, Precision, Recall, DICE, Pixel accurracy).
@@ -41,7 +48,7 @@ Once the model is trained, you can use it to generate predictions for new images
 
 ```bash
 
-python3 src/predict.py <input_image_path>
+poetry run python3 src/predict.py <input_image_path>
 ```
 
 
@@ -52,7 +59,7 @@ To evaluate the model’s performance on the test dataset, run the metrics scrip
 
 ```bash
 
-python3 src/metrics.py
+poetry run python3 src/metrics.py
 ```
 
 ## Config.yaml parameters
