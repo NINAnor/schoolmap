@@ -1,0 +1,4 @@
+# Data retrieval
+WMS_URL: "https://wms.geonorge.no/skwms1/wms.nib"
+CRS: "EPSG:4326"
+SAVE_IMAGE: True

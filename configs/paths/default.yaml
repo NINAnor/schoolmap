@@ -1,0 +1,13 @@
+# Data path for training
+MASK:
+MASKS_DIR:
+IMG_DIR:
+
+# Data path for testing
+PRED_TEST_MASKS:
+GT_TEST_MASKS:
+
+# Predicting the non-annotated dataset
+BOUNDING_BOXES:
+IMG_DIR_PREDICT:
+PREDICTED_MASKS:
