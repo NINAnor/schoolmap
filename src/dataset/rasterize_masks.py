@@ -2,10 +2,10 @@
 
 import os
 
+import hydra
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import yaml
 from PIL import Image
 from rasterio.features import rasterize
 from rasterio.transform import from_origin
@@ -101,10 +101,15 @@ def rasterize_masks(
         print(f"Saved mask: {mask_filename}")
 
 
-if __name__ == "__main__":
-    with open("config.yaml") as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
+@hydra.main(version_base=None, config_path="../../configs", config_name="config")
+def main(cfg):
     rasterize_masks(
-        cfg["MASK"], cfg["IMG_DIR"], cfg["MASKS_DIR"], label_column="labelTekst"
+        cfg.paths.MASK,
+        cfg.paths.IMG_DIR,
+        cfg.paths.MASKS_DIR,
+        label_column="labelTekst",
     )
+
+
+if __name__ == "__main__":
+    main()

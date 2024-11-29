@@ -1,9 +1,11 @@
 import glob
 import os
 
+import hydra
 import numpy as np
-import yaml
 from PIL import Image
+
+# TODO: Get an estimate of % or error on each class
 
 
 def pixel_accuracy(pred, label):
@@ -131,12 +133,10 @@ def aggregate_metrics(metrics_list):
     return avg_metrics
 
 
-if __name__ == "__main__":
-    with open("./config.yaml") as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    pred_folder = cfg["PREDICTED_MASKS"]
-    gt_folder = cfg["MASKS_DIR"]
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg):
+    pred_folder = cfg.paths.PRED_TEST_MASKS
+    gt_folder = cfg.paths.GT_TEST_MASKS
     num_classes = 8
     ignore_value = -1
 
@@ -148,37 +148,5 @@ if __name__ == "__main__":
         print(f"{metric}: {value:.4f}")
 
 
-# Without augmentation
-
-# Average Metrics for all masks:
-# Pixel Accuracy: 0.9000
-# Mean IoU: 0.6252
-# Mean Dice Coefficient: 0.7721
-# recision: 0.7907
-# Recall: 0.7270
-
-# Without augmentation but albumentations:
-# Pixel Accuracy: 0.8778
-# Mean IoU: 0.5277
-# Mean Dice Coefficient: 0.6926
-# Precision: 0.7484
-# Recall: 0.6418
-
-
-# With augmentation
-
-# Pixel Accuracy: 0.6825
-# Mean IoU: 0.1765
-# Mean Dice Coefficient: 0.3935
-# Precision: 0.5590
-# Recall: 0.2953
-
-
-# With only normalisation
-
-# Average Metrics for all masks:
-# Pixel Accuracy: 0.7626
-# Mean IoU: 0.2935
-# Mean Dice Coefficient: 0.4953
-# Precision: 0.5157
-# Recall: 0.4339
+if __name__ == "__main__":
+    main()
