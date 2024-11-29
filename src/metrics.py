@@ -50,7 +50,7 @@ def dice_coefficient(pred_mask, gt_mask, num_classes):
 
 
 def precision(pred, label, num_classes):
-    precision_per_class = []
+    precision_per_class = {}
     for cls in range(num_classes):
         pred_inds = pred == cls
         label_inds = label == cls
@@ -58,15 +58,15 @@ def precision(pred, label, num_classes):
         false_positive = (pred_inds & ~label_inds).sum().item()
 
         if true_positive + false_positive == 0:
-            precision_per_class.append(np.nan)
+            precision_per_class[cls] = np.nan
         else:
-            precision_per_class.append(true_positive / (true_positive + false_positive))
+            precision_per_class[cls] = true_positive / (true_positive + false_positive)
 
-    return np.nanmean(precision_per_class)
+    return precision_per_class
 
 
 def recall(pred, label, num_classes):
-    recall_per_class = []
+    recall_per_class = {}
     for cls in range(num_classes):
         pred_inds = pred == cls
         label_inds = label == cls
@@ -74,11 +74,11 @@ def recall(pred, label, num_classes):
         false_negative = (~pred_inds & label_inds).sum().item()
 
         if true_positive + false_negative == 0:
-            recall_per_class.append(np.nan)
+            recall_per_class[cls] = np.nan
         else:
-            recall_per_class.append(true_positive / (true_positive + false_negative))
+            recall_per_class[cls] = true_positive / (true_positive + false_negative)
 
-    return np.nanmean(recall_per_class)
+    return recall_per_class
 
 
 def apply_ignore_index(pred, label, ignore_value=-1):
@@ -93,15 +93,20 @@ def evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes=8):
     pa = pixel_accuracy(pred_mask, gt_mask)
     iou = intersection_over_union(pred_mask, gt_mask, num_classes)
     dice = dice_coefficient(pred_mask, gt_mask, num_classes)
-    prec = precision(pred_mask, gt_mask, num_classes)
-    rec = recall(pred_mask, gt_mask, num_classes)
+    prec_per_class = precision(pred_mask, gt_mask, num_classes)
+    rec_per_class = recall(pred_mask, gt_mask, num_classes)
+
+    avg_precision = np.nanmean(list(prec_per_class.values()))
+    avg_recall = np.nanmean(list(rec_per_class.values()))
 
     return {
         "Pixel Accuracy": pa,
         "Mean IoU": iou,
         "Mean Dice Coefficient": dice,
-        "Precision": prec,
-        "Recall": rec,
+        "Precision": avg_precision,
+        "Recall": avg_recall,
+        "Class-wise Precision": prec_per_class,
+        "Class-wise Recall": rec_per_class,
     }
 
 
@@ -127,8 +132,34 @@ def aggregate_metrics(metrics_list):
     avg_metrics = {}
     num_metrics = len(metrics_list)
 
-    for key in metrics_list[0].keys():
+    # Aggregate non-class-wise metrics
+    for key in [
+        "Pixel Accuracy",
+        "Mean IoU",
+        "Mean Dice Coefficient",
+        "Precision",
+        "Recall",
+    ]:
         avg_metrics[key] = sum(d[key] for d in metrics_list) / num_metrics
+
+    # Aggregate class-wise precision and recall
+    class_precision = {
+        cls: [] for cls in metrics_list[0]["Class-wise Precision"].keys()
+    }
+    class_recall = {cls: [] for cls in metrics_list[0]["Class-wise Recall"].keys()}
+
+    for metrics in metrics_list:
+        for cls, value in metrics["Class-wise Precision"].items():
+            class_precision[cls].append(value)
+        for cls, value in metrics["Class-wise Recall"].items():
+            class_recall[cls].append(value)
+
+    avg_metrics["Class-wise Precision"] = {
+        cls: np.nanmean(values) for cls, values in class_precision.items()
+    }
+    avg_metrics["Class-wise Recall"] = {
+        cls: np.nanmean(values) for cls, values in class_recall.items()
+    }
 
     return avg_metrics
 
@@ -145,7 +176,12 @@ def main(cfg):
 
     print("Average Metrics for all masks:")
     for metric, value in avg_metrics.items():
-        print(f"{metric}: {value:.4f}")
+        if metric not in ["Class-wise Precision", "Class-wise Recall"]:
+            print(f"{metric}: {value:.4f}")
+        else:
+            print(f"{metric}:")
+            for cls, cls_value in value.items():
+                print(f"  Class {cls}: {cls_value:.4f}")
 
 
 if __name__ == "__main__":
