@@ -69,4 +69,8 @@ To evaluate the model’s performance on the test dataset, run the metrics scrip
 poetry run python3 src/metrics.py
 ```
 
-6. Predict new areas
+## Results
+
+Here is an example of a segmented image:
+
+![](./assets/segmentation_exple.png)
