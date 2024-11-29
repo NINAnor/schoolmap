@@ -1,18 +1,17 @@
 #!/usr/env/bin python3
 
 import os
-import sys
+import hydra
 
 import numpy as np
 import torch
 import torchvision.transforms as T
-import yaml
 from PIL import Image
 from torchvision.models.segmentation import deeplabv3_resnet50
 
 
 def load_model(checkpoint_path, num_classes=8):
-    model = deeplabv3_resnet50(pretrained=False)
+    model = deeplabv3_resnet50(weights=None)
     model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
 
     # Load the saved state dict
@@ -108,18 +107,19 @@ def predict_image(image_path, mask_path, model, output_mask_path):
     print(f"Predicted mask saved at {pred_mask_name}")
 
 
-if __name__ == "__main__":
-    with open("./config.yaml") as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    if len(sys.argv) != 2:
-        print("Usage: python predict.py <input_image_path>")
-        sys.exit(1)
-
-    input_image_path = sys.argv[1]
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg):
+    if not os.path.exists(cfg.paths.PRED_TEST_MASKS):
+        os.makedirs(cfg.paths.PRED_TEST_MASKS)
 
     # Load the model
-    model = load_model(cfg["MODEL_PATH"])
+    model = load_model(cfg.paths.MODEL_PATH)
 
     # Run prediction and save the mask
-    predict_image(input_image_path, cfg["MASKS_DIR"], model, cfg["PREDICTED_MASKS"])
+    predict_image(
+        cfg.paths.INPUT_IMAGE, cfg.paths.GT_TEST_MASKS, model, cfg.paths.PRED_TEST_MASKS
+    )
+
+
+if __name__ == "__main__":
+    main()

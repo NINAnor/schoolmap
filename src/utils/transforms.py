@@ -5,9 +5,13 @@ from torchvision import transforms
 
 albumentations_transform = A.Compose(
     [
-        # Any augmentations except resizing
-        # A.RandomRotate90(p=0.5),
-        # A.Flip(p=0.5),
+        A.RandomRotate90(p=0.5),
+        A.HorizontalFlip(p=0.5),
+        A.VerticalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.5),
+        A.GaussNoise(p=0.5),
+        A.GridDistortion(p=0.5),
+        A.ElasticTransform(p=0.5),
         A.Normalize(mean=(0, 0, 0), std=(1, 1, 1)),
         ToTensorV2(),
     ],
@@ -23,20 +27,3 @@ resize_transform = transforms.Compose(
         ),
     ]
 )
-
-
-# BILINEAR:
-
-# Pixel Accuracy: 0.8881
-# Mean IoU: 0.5677
-# Mean Dice Coefficient: 0.7230
-# Precision: 0.7449
-# Recall: 0.6903
-
-# NEAREST:
-
-# Pixel Accuracy: 0.8925
-# Mean IoU: 0.5953
-# Mean Dice Coefficient: 0.7371
-# Precision: 0.7633
-# Recall: 0.7121

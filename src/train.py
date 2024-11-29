@@ -7,7 +7,7 @@ import torch.utils
 import torch.utils.data
 import torchmetrics
 import torchvision.models.segmentation as models
-import yaml
+import hydra
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torchmetrics.classification import MulticlassJaccardIndex
@@ -16,6 +16,7 @@ from dataset.segmentation_dataset import get_data_loaders
 from utils.transforms import albumentations_transform, resize_transform
 
 torch.backends.cudnn.benchmark = True
+
 
 def get_deeplabv3_model(num_classes):
     model = models.deeplabv3_resnet50(weights="COCO_WITH_VOC_LABELS_V1")
@@ -96,37 +97,35 @@ class SegmentationModel(pl.LightningModule):
         return torch.optim.Adam(self.parameters(), lr=self.lr)
 
 
-def train(cfg):
+@hydra.main(version_base=None, config_path="../configs", config_name="config")
+def main(cfg):
     train_loader, val_loader = get_data_loaders(
-        cfg["IMG_DIR"],
-        cfg["MASKS_DIR"],
-        batch_size=cfg["BATCH_SIZE"],
+        cfg.paths.IMG_DIR,
+        cfg.paths.MASKS_DIR,
+        batch_size=cfg.train.BATCH_SIZE,
         albumentations_transform=albumentations_transform,
         resize_transform=resize_transform,
-        num_workers=cfg["NUM_WORKERS"],
+        num_workers=cfg.train.NUM_WORKERS,
     )
 
-    num_classes = cfg["NUM_CLASSES"]
-    model = SegmentationModel(num_classes=num_classes, lr=cfg["LR"])
+    num_classes = cfg.train.NUM_CLASSES
+    model = SegmentationModel(num_classes=num_classes, lr=cfg.train.LR)
 
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
 
     early_stopping_callback = EarlyStopping(
         monitor="val_loss",
-        patience=cfg["PATIENCE"],
+        patience=cfg.train.PATIENCE,
         verbose=True,
         mode="min",
     )
 
     trainer = Trainer(
-        max_epochs=cfg["NUM_EPOCHS"],
+        max_epochs=cfg.train.NUM_EPOCHS,
         callbacks=[checkpoint_callback, early_stopping_callback],
     )
     trainer.fit(model, train_loader, val_loader)
 
 
 if __name__ == "__main__":
-    with open("./config.yaml") as f:
-        cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-    train(cfg)
+    main()
