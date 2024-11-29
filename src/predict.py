@@ -76,7 +76,10 @@ def apply_ignore_index(predicted_mask, ground_truth_mask, ignore_value=-1):
     return predicted_mask
 
 
-def predict_image(image_path, mask_path, model, output_mask_path):
+def predict_test_image(image_path, mask_path, model, output_mask_path):
+    if not os.path.exists(output_mask_path):
+        os.makedirs(output_mask_path)
+
     input_tensor, original_size = preprocess_image(image_path)
     with torch.no_grad():
         output = model(input_tensor)["out"]
@@ -107,18 +110,145 @@ def predict_image(image_path, mask_path, model, output_mask_path):
     print(f"Predicted mask saved at {pred_mask_name}")
 
 
+def patch_and_pad_image(image, patch_size=512, overlap=0):
+    """
+    Divide an image into patches of the given size, with optional overlap.
+
+    Args:
+        image (PIL.Image): The input image.
+        patch_size (int): The size of each square patch (default: 512).
+        overlap (int): The overlap between adjacent patches (default: 0).
+
+    Returns:
+        patches (list): List of image patches as NumPy arrays and their top-left coordinates.
+        padded_size (tuple): Dimensions of the padded image (width, height).
+        original_size (tuple): Original dimensions of the image (width, height).
+    """
+    original_width, original_height = image.size
+
+    # Calculate padding
+    pad_width = (patch_size - (original_width % patch_size)) % patch_size
+    pad_height = (patch_size - (original_height % patch_size)) % patch_size
+
+    padded_width = original_width + pad_width
+    padded_height = original_height + pad_height
+
+    # Pad the image
+    padded_image = Image.new("RGB", (padded_width, padded_height))
+    padded_image.paste(image, (0, 0))
+
+    # Divide into patches
+    patches = []
+    step = patch_size - overlap  # Adjust step size based on overlap
+    for y in range(0, padded_height, step):
+        for x in range(0, padded_width, step):
+            patch = padded_image.crop((x, y, x + patch_size, y + patch_size))
+            patches.append((patch, (x, y)))
+
+    return patches, (padded_width, padded_height), (original_width, original_height)
+
+
+def stitch_patches(patches, padded_size, original_size, patch_size=512):
+    """
+    Combine patches back into a single image, trimming any padding.
+
+    Args:
+        patches (list): List of predicted patches as NumPy arrays.
+        padded_size (tuple): Dimensions of the padded image (width, height).
+        original_size (tuple): Original dimensions of the image (width, height).
+        patch_size (int): The size of each square patch (default: 512).
+
+    Returns:
+        stitched_image (PIL.Image): The reconstructed image without padding.
+    """
+    padded_width, padded_height = padded_size
+    original_width, original_height = original_size
+
+    # Create a blank array for the full padded image
+    full_image = np.zeros((padded_height, padded_width), dtype=np.int16)
+
+    # Place patches into the full image
+    idx = 0
+    for y in range(0, padded_height, patch_size):
+        for x in range(0, padded_width, patch_size):
+            full_image[y : y + patch_size, x : x + patch_size] = patches[idx]
+            idx += 1
+
+    # Crop to the original size
+    stitched_image = Image.fromarray(full_image[:original_height, :original_width])
+
+    return stitched_image
+
+
+def predict_non_annotated_image(
+    image_path, model, output_mask_path, patch_size=512, overlap=0
+):
+    if not os.path.exists(output_mask_path):
+        os.makedirs(output_mask_path)
+
+    # Load and preprocess the image
+    image = Image.open(image_path).convert("RGB")
+    patches, padded_size, original_size = patch_and_pad_image(
+        image, patch_size, overlap
+    )
+
+    padded_width, padded_height = padded_size
+    num_classes = model.classifier[4].out_channels  # Get the number of output classes
+    vote_map = np.zeros((padded_height, padded_width, num_classes), dtype=np.int32)
+
+    # Predict each patch
+    with torch.no_grad():
+        for patch, (x, y) in patches:
+            patch_tensor = T.ToTensor()(patch).unsqueeze(0)
+            output = model(patch_tensor)["out"]
+            predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
+
+            # Get the actual dimensions of the current patch (may differ for edge patches)
+            patch_height, patch_width = predicted_patch.shape
+
+            # Dynamically slice the vote_map to match the patch size
+            vote_map[y : y + patch_height, x : x + patch_width] += np.eye(
+                num_classes, dtype=np.int32
+            )[predicted_patch]
+
+    # Take the class with the most votes
+    final_mask = np.argmax(vote_map, axis=2).astype(np.uint8)
+
+    # Crop to the original size
+    final_mask = final_mask[: original_size[1], : original_size[0]]
+
+    # Save the final mask
+    pred_mask_name = os.path.join(
+        output_mask_path,
+        "predmask_" + os.path.basename(image_path).split(".")[0] + ".tif",
+    )
+    Image.fromarray(final_mask).save(pred_mask_name)
+    print(f"Predicted mask saved at {pred_mask_name}")
+
+
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
-    if not os.path.exists(cfg.paths.PRED_TEST_MASKS):
-        os.makedirs(cfg.paths.PRED_TEST_MASKS)
+    valid_modes = ["test", "predict"]
+    if cfg.predict.MODE not in valid_modes:
+        raise ValueError(
+            f"Invalid MODE: {cfg.predict.MODE}. Valid options are: {', '.join(valid_modes)}"
+        )
 
     # Load the model
     model = load_model(cfg.paths.MODEL_PATH)
 
-    # Run prediction and save the mask
-    predict_image(
-        cfg.paths.INPUT_IMAGE, cfg.paths.GT_TEST_MASKS, model, cfg.paths.PRED_TEST_MASKS
-    )
+    if cfg.predict.MODE == "test":
+        predict_test_image(
+            cfg.paths.INPUT_IMAGE,
+            cfg.paths.GT_TEST_MASKS,
+            model,
+            cfg.paths.PRED_TEST_MASKS,
+        )
+
+    elif cfg.predict.MODE == "predict":
+        predict_non_annotated_image(
+            cfg.paths.INPUT_IMAGE, model, cfg.paths.PREDICTED_MASKS, patch_size=512
+        )
 
 
 if __name__ == "__main__":

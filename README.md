@@ -44,7 +44,9 @@ poetry run python3 src/train.py
 
 The training script supports early stopping, model checkpoints, and tracks the loss function and evaluation metrics (IoU, Precision, Recall, DICE, Pixel accurracy).
 
-4. Predict New Areas
+4. Predictions
+
+**Note:** The predict script can predict on the test dataset (for which you have labels) or on the pictures without annotation. You need to change the parameter `MODE` from `configs/predict/default.yaml` to `predict` (if you want to predict on unnanotated pictures), or `test` if you want to predict on the test dataset. This difference occurs only because in the test dataset we have acces to the shapefile of the school, and we don't have to predict on the entire image.
 
 Once the model is trained, you can use it to generate predictions for new images. The following script takes an input image and outputs the corresponding segmentation mask:
 
@@ -66,3 +68,5 @@ To evaluate the model’s performance on the test dataset, run the metrics scrip
 
 poetry run python3 src/metrics.py
 ```
+
+6. Predict new areas
