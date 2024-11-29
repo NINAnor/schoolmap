@@ -8,6 +8,7 @@ import torch
 import torchvision.transforms as T
 from PIL import Image
 from torchvision.models.segmentation import deeplabv3_resnet50
+from scipy.ndimage import median_filter
 
 
 def load_model(checkpoint_path, num_classes=8):
@@ -181,7 +182,13 @@ def stitch_patches(patches, padded_size, original_size, patch_size=512):
 
 
 def predict_non_annotated_image(
-    image_path, model, output_mask_path, patch_size=512, overlap=0
+    image_path,
+    model,
+    output_mask_path,
+    patch_size,
+    overlap,
+    median_filter_size,
+    boundary_width,
 ):
     if not os.path.exists(output_mask_path):
         os.makedirs(output_mask_path)
@@ -192,37 +199,63 @@ def predict_non_annotated_image(
         image, patch_size, overlap
     )
 
-    padded_width, padded_height = padded_size
-    num_classes = model.classifier[4].out_channels  # Get the number of output classes
-    vote_map = np.zeros((padded_height, padded_width, num_classes), dtype=np.int32)
-
-    # Predict each patch
+    # Predict each patch and store the results
+    predicted_patches = []
     with torch.no_grad():
         for patch, (x, y) in patches:
             patch_tensor = T.ToTensor()(patch).unsqueeze(0)
             output = model(patch_tensor)["out"]
             predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
+            predicted_patches.append((predicted_patch, (x, y)))
 
-            # Get the actual dimensions of the current patch (may differ for edge patches)
-            patch_height, patch_width = predicted_patch.shape
+    # Stitch patches back together
+    padded_width, padded_height = padded_size
+    full_mask = np.zeros((padded_height, padded_width), dtype=np.uint8)
+    boundary_mask = np.zeros_like(full_mask, dtype=bool)  # To track extended boundaries
 
-            # Dynamically slice the vote_map to match the patch size
-            vote_map[y : y + patch_height, x : x + patch_width] += np.eye(
-                num_classes, dtype=np.int32
-            )[predicted_patch]
+    for predicted_patch, (x, y) in predicted_patches:
+        patch_height, patch_width = predicted_patch.shape
 
-    # Take the class with the most votes
-    final_mask = np.argmax(vote_map, axis=2).astype(np.uint8)
+        # Stitch patch into full_mask
+        full_mask[y : y + patch_height, x : x + patch_width] = predicted_patch
+
+        # Mark extended boundaries
+        if y > 0:
+            boundary_mask[max(0, y - boundary_width) : y, x : x + patch_width] = (
+                True  # Top edge
+            )
+        if y + patch_height < padded_height:
+            boundary_mask[
+                y + patch_height : min(
+                    padded_height, y + patch_height + boundary_width
+                ),
+                x : x + patch_width,
+            ] = True  # Bottom edge
+        if x > 0:
+            boundary_mask[y : y + patch_height, max(0, x - boundary_width) : x] = (
+                True  # Left edge
+            )
+        if x + patch_width < padded_width:
+            boundary_mask[
+                y : y + patch_height,
+                x + patch_width : min(padded_width, x + patch_width + boundary_width),
+            ] = True  # Right edge
 
     # Crop to the original size
-    final_mask = final_mask[: original_size[1], : original_size[0]]
+    cropped_mask = full_mask[: original_size[1], : original_size[0]]
+    boundary_mask = boundary_mask[: original_size[1], : original_size[0]]
 
-    # Save the final mask
+    # Apply median filter only on the extended boundaries
+    smoothed_mask = cropped_mask.copy()
+    smoothed_boundaries = median_filter(cropped_mask, size=median_filter_size)
+    smoothed_mask[boundary_mask] = smoothed_boundaries[boundary_mask]
+
+    # Save the smoothed mask
     pred_mask_name = os.path.join(
         output_mask_path,
         "predmask_" + os.path.basename(image_path).split(".")[0] + ".tif",
     )
-    Image.fromarray(final_mask).save(pred_mask_name)
+    Image.fromarray(smoothed_mask).save(pred_mask_name)
     print(f"Predicted mask saved at {pred_mask_name}")
 
 
@@ -247,7 +280,13 @@ def main(cfg):
 
     elif cfg.predict.MODE == "predict":
         predict_non_annotated_image(
-            cfg.paths.INPUT_IMAGE, model, cfg.paths.PREDICTED_MASKS, patch_size=512
+            cfg.paths.INPUT_IMAGE,
+            model,
+            cfg.paths.PREDICTED_MASKS,
+            cfg.predict.PATCH_SIZE,
+            cfg.predict.OVERLAP,
+            cfg.predict.MEDIAN_FILTER_SIZE,
+            cfg.predict.BOUNDARY_WIDTH,
         )
 
 
