@@ -128,6 +128,7 @@ def main(cfg):
 
     trainer = Trainer(
         max_epochs=cfg.train.NUM_EPOCHS,
+        log_every_n_steps=cfg.train.LOG_EVERY_N_STEPS,
         callbacks=[checkpoint_callback, early_stopping_callback],
     )
     trainer.fit(model, train_loader, val_loader)
