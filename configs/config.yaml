@@ -1,0 +1,11 @@
+defaults:
+  - _self_
+  - dataset: default
+  - train: default
+  - predict: default
+  - paths: default
+
+hydra:
+  run:
+    dir: .
+  output_subdir: null
