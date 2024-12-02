@@ -1,5 +1,6 @@
 #!/usr/env/bin python3
 
+import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
@@ -7,12 +8,12 @@ import torch.utils
 import torch.utils.data
 import torchmetrics
 import torchvision.models.segmentation as models
-import hydra
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torchmetrics.classification import MulticlassJaccardIndex
 
 from dataset.segmentation_dataset import get_data_loaders
+from utils.check_cuda import check_tensor_cores
 from utils.transforms import albumentations_transform, resize_transform
 
 torch.backends.cudnn.benchmark = True
@@ -99,6 +100,11 @@ class SegmentationModel(pl.LightningModule):
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
+    if torch.cuda.is_available():
+        check_tensor_cores()
+    else:
+        print("CUDA is not available on this system.")
+
     train_loader, val_loader = get_data_loaders(
         cfg.paths.IMG_DIR,
         cfg.paths.MASKS_DIR,
