@@ -11,7 +11,7 @@ from torchvision.models.segmentation import deeplabv3_resnet50
 from scipy.ndimage import median_filter
 
 
-def load_model(checkpoint_path, num_classes=8):
+def load_model(checkpoint_path, num_classes):
     model = deeplabv3_resnet50(weights=None)
     model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
 
@@ -268,7 +268,7 @@ def main(cfg):
         )
 
     # Load the model
-    model = load_model(cfg.paths.MODEL_PATH)
+    model = load_model(cfg.paths.MODEL_PATH, cfg.train.NUM_CLASSES)
 
     if cfg.predict.MODE == "test":
         predict_test_image(

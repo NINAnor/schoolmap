@@ -1,1 +1,5 @@
-MODEL_PATH: "/home/benjamin.cretois/Code/schoolmap/lightning_logs/version_0/checkpoints/epoch=9-step=170.ckpt"
+MODE: predict # test, if you are predicting on the test set / predict, if you are predicting on unnanotated images (completely new area)
+PATCH_SIZE: 512
+OVERLAP: 0
+MEDIAN_FILTER_SIZE: 30
+BOUNDARY_WIDTH: 50
