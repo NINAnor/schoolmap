@@ -7,28 +7,22 @@ import torch.nn.functional as F
 import torch.utils
 import torch.utils.data
 import torchmetrics
-import torchvision.models.segmentation as models
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from torchmetrics.classification import MulticlassJaccardIndex
 
 from dataset.segmentation_dataset import get_data_loaders
 from utils.check_cuda import check_tensor_cores
+from utils.models import get_segmentation_model
 from utils.transforms import albumentations_transform, resize_transform
 
 torch.backends.cudnn.benchmark = True
 
 
-def get_deeplabv3_model(num_classes):
-    model = models.deeplabv3_resnet50(weights="COCO_WITH_VOC_LABELS_V1")
-    model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
-    return model
-
-
 class SegmentationModel(pl.LightningModule):
-    def __init__(self, num_classes, lr=1e-4):
+    def __init__(self, num_classes, lr=1e-4, model=None):
         super().__init__()
-        self.model = get_deeplabv3_model(num_classes)
+        self.model = model
         self.lr = lr
         self.num_classes = num_classes
 
@@ -58,7 +52,12 @@ class SegmentationModel(pl.LightningModule):
         self.val_iou = MulticlassJaccardIndex(num_classes=num_classes, ignore_index=-1)
 
     def forward(self, x):
-        return self.model(x)["out"]
+        model_name = self.model.__class__.__name__.lower()
+
+        if model_name == "deeplabv3":
+            return self.model(x)["out"]
+        else:
+            return self.model(x)
 
     def training_step(self, batch, batch_idx):
         images, masks = batch
@@ -115,7 +114,11 @@ def main(cfg):
     )
 
     num_classes = cfg.train.NUM_CLASSES
-    model = SegmentationModel(num_classes=num_classes, lr=cfg.train.LR)
+    model = SegmentationModel(
+        num_classes=num_classes,
+        lr=cfg.train.LR,
+        model=get_segmentation_model(cfg.train.MODEL, num_classes),
+    )
 
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
 
