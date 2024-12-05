@@ -107,11 +107,7 @@ def create_legend_image():
     # Open the image and return it as a PIL image
     legend_image = Image.open(buf)
 
-    # Save the legend image
-    legend_image_path = "legend_image.png"
-    legend_image.save(legend_image_path)
-
-    return legend_image_path
+    return legend_image
 
 
 if __name__ == "__main__":
