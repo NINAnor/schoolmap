@@ -109,48 +109,13 @@ def predict_non_annotated_image(
 
     predicted_patches = model_prediction_patches(patches, model)
 
-    # Stitch patches back together
-    padded_width, padded_height = padded_size
-    full_mask = np.zeros((padded_height, padded_width), dtype=np.uint8)
-    boundary_mask = np.zeros_like(full_mask, dtype=bool)  # To track extended boundaries
-
-    for predicted_patch, (x, y) in predicted_patches:
-        patch_height, patch_width = predicted_patch.shape
-
-        # Stitch patch into full_mask
-        full_mask[y : y + patch_height, x : x + patch_width] = predicted_patch
-
-        # Mark extended boundaries
-        if y > 0:
-            boundary_mask[max(0, y - boundary_width) : y, x : x + patch_width] = (
-                True  # Top edge
-            )
-        if y + patch_height < padded_height:
-            boundary_mask[
-                y + patch_height : min(
-                    padded_height, y + patch_height + boundary_width
-                ),
-                x : x + patch_width,
-            ] = True  # Bottom edge
-        if x > 0:
-            boundary_mask[y : y + patch_height, max(0, x - boundary_width) : x] = (
-                True  # Left edge
-            )
-        if x + patch_width < padded_width:
-            boundary_mask[
-                y : y + patch_height,
-                x + patch_width : min(padded_width, x + patch_width + boundary_width),
-            ] = True  # Right edge
-
-    # Crop to the original size
-    cropped_mask = full_mask[: original_size[1], : original_size[0]]
-    boundary_mask = boundary_mask[: original_size[1], : original_size[0]]
-
-    # Apply median filter only on the extended boundaries
-    smoothed_mask = cropped_mask.copy()
-    smoothed_boundaries = median_filter(cropped_mask, size=median_filter_size)
-    smoothed_mask[boundary_mask] = smoothed_boundaries[boundary_mask]
-
+    smoothed_mask = stitch_patches(
+        padded_size,
+        predicted_patches,
+        boundary_width,
+        original_size,
+        median_filter_size,
+    )
     # Save the smoothed mask
     pred_mask_name = os.path.join(
         output_mask_path,
