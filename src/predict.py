@@ -126,37 +126,6 @@ def patch_and_pad_image(image, patch_size=512, overlap=0):
     return patches, (padded_width, padded_height), (original_width, original_height)
 
 
-def stitch_patches(patches, padded_size, original_size, patch_size=512):
-    """
-    Combine patches back into a single image, trimming any padding.
-
-    Args:
-        patches (list): List of predicted patches as NumPy arrays.
-        padded_size (tuple): Dimensions of the padded image (width, height).
-        original_size (tuple): Original dimensions of the image (width, height).
-        patch_size (int): The size of each square patch (default: 512).
-
-    Returns:
-        stitched_image (PIL.Image): The reconstructed image without padding.
-    """
-    padded_width, padded_height = padded_size
-    original_width, original_height = original_size
-
-    # Create a blank array for the full padded image
-    full_image = np.zeros((padded_height, padded_width), dtype=np.int16)
-
-    # Place patches into the full image
-    idx = 0
-    for y in range(0, padded_height, patch_size):
-        for x in range(0, padded_width, patch_size):
-            full_image[y : y + patch_size, x : x + patch_size] = patches[idx]
-            idx += 1
-
-    # Crop to the original size
-    stitched_image = Image.fromarray(full_image[:original_height, :original_width])
-
-    return stitched_image
-
 
 def predict_non_annotated_image(
     image_path,
