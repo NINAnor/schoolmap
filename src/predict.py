@@ -1,38 +1,15 @@
 #!/usr/env/bin python3
 
 import os
-import hydra
 
+import hydra
 import numpy as np
 import torch
 import torchvision.transforms as T
 from PIL import Image
-from torchvision.models.segmentation import deeplabv3_resnet50
 from scipy.ndimage import median_filter
 
-
-def load_model(checkpoint_path, num_classes):
-    model = deeplabv3_resnet50(weights=None)
-    model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
-
-    # Load the saved state dict
-    checkpoint = torch.load(
-        checkpoint_path,
-        map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    )
-
-    # Remove the 'model.' prefix from the state_dict keys
-    state_dict = {
-        k.replace("model.", ""): v for k, v in checkpoint["state_dict"].items()
-    }
-
-    # Filter out the auxiliary classifier keys
-    state_dict = {k: v for k, v in state_dict.items() if "aux_classifier" not in k}
-
-    # Load the modified state_dict into the model
-    model.load_state_dict(state_dict, strict=False)
-    model.eval()  # Set the model to evaluation mode
-    return model
+from utils.models import load_model
 
 
 def preprocess_image(image_path):

@@ -4,15 +4,16 @@ import os
 
 import gradio as gr
 import hydra
-from hydra.core.global_hydra import GlobalHydra
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torchvision.transforms as T
+from hydra.core.global_hydra import GlobalHydra
 from PIL import Image
 from scipy.ndimage import median_filter
-from torchvision.models.segmentation import deeplabv3_resnet50
+
+from utils.models import load_model
 
 COLORMAP = [
     [128, 128, 128],  # For class 'innendørs'
@@ -160,27 +161,6 @@ def load_config():
     return cfg
 
 
-
-def load_model(checkpoint_path, num_classes=8):
-    model = deeplabv3_resnet50(pretrained=False)
-    model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
-
-    checkpoint = torch.load(
-        checkpoint_path,
-        map_location=torch.device("cuda" if torch.cuda.is_available() else "cpu"),
-    )
-
-    state_dict = {
-        k.replace("model.", ""): v for k, v in checkpoint["state_dict"].items()
-    }
-
-    state_dict = {k: v for k, v in state_dict.items() if "aux_classifier" not in k}
-
-    model.load_state_dict(state_dict, strict=False)
-    model.eval()  # Set the model to evaluation mode
-    return model
-
-
 def stitch_patches(patches, padded_size, original_size, patch_size=512):
     """
     Combine patches back into a single image, trimming any padding.
@@ -219,11 +199,10 @@ def inference(image):
     median_filter_size = cfg.predict.MEDIAN_FILTER_SIZE
     patch_size = cfg.predict.PATCH_SIZE
     overlap = cfg.predict.OVERLAP
-    
 
     model = load_model(cfg.paths.MODEL_PATH, cfg.train.NUM_CLASSES)
 
-    #image = Image.open(image).convert("RGB")
+    # image = Image.open(image).convert("RGB")
     patches, padded_size, original_size = patch_and_pad_image(
         image, patch_size, overlap
     )
@@ -235,7 +214,7 @@ def inference(image):
             output = model(patch_tensor)["out"]
             predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
             predicted_patches.append((predicted_patch, (x, y)))
-    
+
     # Stitch patches back together
     padded_width, padded_height = padded_size
     full_mask = np.zeros((padded_height, padded_width), dtype=np.uint8)
@@ -277,15 +256,12 @@ def inference(image):
     smoothed_mask = cropped_mask.copy()
     smoothed_boundaries = median_filter(cropped_mask, size=median_filter_size)
     smoothed_mask[boundary_mask] = smoothed_boundaries[boundary_mask]
-    
-    predicted_mask = np.zeros(
-        (original_size[1], original_size[0], 3), dtype=np.uint8
-    )
-    
+
+    predicted_mask = np.zeros((original_size[1], original_size[0], 3), dtype=np.uint8)
+
     for class_id, color in enumerate(COLORMAP):
         predicted_mask[np.array(smoothed_mask) == class_id] = color
-    
-    
+
     predicted_mask_image = Image.fromarray(predicted_mask)
 
     legend_image = create_legend_image()
