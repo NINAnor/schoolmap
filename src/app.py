@@ -1,20 +1,17 @@
 #!/usr/env/bin python3
 import io
-import os
 
 import gradio as gr
 import hydra
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import torch
-import torchvision.transforms as T
 from hydra.core.global_hydra import GlobalHydra
 from PIL import Image
 from scipy.ndimage import median_filter
 
 from utils.models import load_model
-from utils.predict_patches import patch_and_pad_image
+from utils.predict_patches import model_prediction_patches, patch_and_pad_image
 
 COLORMAP = [
     [128, 128, 128],  # For class 'innendørs'
@@ -35,6 +32,7 @@ LABELS = [
     "gress",
     "trær",
 ]
+
 
 def load_config():
     """Initialize Hydra configuration if not already initialized."""
@@ -60,13 +58,7 @@ def inference(image):
         image, patch_size, overlap
     )
 
-    predicted_patches = []
-    with torch.no_grad():
-        for patch, (x, y) in patches:
-            patch_tensor = T.ToTensor()(patch).unsqueeze(0)
-            output = model(patch_tensor)["out"]
-            predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
-            predicted_patches.append((predicted_patch, (x, y)))
+    predicted_patches = model_prediction_patches(patches, model)
 
     # Stitch patches back together
     padded_width, padded_height = padded_size

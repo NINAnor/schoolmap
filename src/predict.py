@@ -10,7 +10,7 @@ from PIL import Image
 from scipy.ndimage import median_filter
 
 from utils.models import load_model
-from utils.predict_patches import patch_and_pad_image
+from utils.predict_patches import patch_and_pad_image, model_prediction_patches, stitch_patches
 
 
 def preprocess_image(image_path):
@@ -107,14 +107,7 @@ def predict_non_annotated_image(
         image, patch_size, overlap
     )
 
-    # Predict each patch and store the results
-    predicted_patches = []
-    with torch.no_grad():
-        for patch, (x, y) in patches:
-            patch_tensor = T.ToTensor()(patch).unsqueeze(0)
-            output = model(patch_tensor)["out"]
-            predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
-            predicted_patches.append((predicted_patch, (x, y)))
+    predicted_patches = model_prediction_patches(patches, model)
 
     # Stitch patches back together
     padded_width, padded_height = padded_size

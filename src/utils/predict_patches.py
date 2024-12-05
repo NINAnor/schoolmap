@@ -1,4 +1,18 @@
 from PIL import Image
+import torch
+import torchvision.transforms as T
+
+def model_prediction_patches(patches, model):
+    predicted_patches = []
+    with torch.no_grad():
+        for patch, (x, y) in patches:
+            patch_tensor = T.ToTensor()(patch).unsqueeze(0)
+            output = model(patch_tensor)["out"]
+            predicted_patch = torch.argmax(output.squeeze(), dim=0).cpu().numpy()
+            predicted_patches.append((predicted_patch, (x, y)))
+    
+    return predicted_patches
+
 
 def patch_and_pad_image(image, patch_size=512, overlap=0):
     """
