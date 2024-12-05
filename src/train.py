@@ -18,6 +18,7 @@ from torchmetrics.classification import MulticlassJaccardIndex
 from dataset.segmentation_dataset import get_data_loaders
 from utils.check_cuda import check_tensor_cores
 from utils.log_files import log_augmentations, log_train_cfg
+from utils.extras import title
 from utils.models import get_segmentation_model
 from utils.transforms import albumentations_transform, resize_transform
 
@@ -104,6 +105,8 @@ class SegmentationModel(pl.LightningModule):
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
+    print(title)
+    
     if torch.cuda.is_available():
         check_tensor_cores()
     else:
