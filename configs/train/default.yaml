@@ -9,3 +9,8 @@ LR: 0.0001
 
 # Callbacks
 PATIENCE: 7
+
+# where to save model outputs, nothing will be overwritten
+# the python script generates a new folder with the current timestamp 
+# for each run
+LOG_DIR: 'lightning_logs'

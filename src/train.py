@@ -1,5 +1,8 @@
 #!/usr/env/bin python3
 
+from datetime import datetime
+from pathlib import Path
+
 import hydra
 import pytorch_lightning as pl
 import torch
@@ -9,10 +12,12 @@ import torch.utils.data
 import torchmetrics
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 from torchmetrics.classification import MulticlassJaccardIndex
 
 from dataset.segmentation_dataset import get_data_loaders
 from utils.check_cuda import check_tensor_cores
+from utils.log_files import log_augmentations, log_train_cfg
 from utils.models import get_segmentation_model
 from utils.transforms import albumentations_transform, resize_transform
 
@@ -104,6 +109,14 @@ def main(cfg):
     else:
         print("CUDA is not available on this system.")
 
+    # create output directory for logging
+    log_dir = Path(cfg.train.LOG_DIR)
+    today_date = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    output_dir = log_dir / today_date
+
+    log_augmentations(albumentations_transform, resize_transform, output_dir)
+    log_train_cfg(cfg.train, output_dir)
+
     train_loader, val_loader = get_data_loaders(
         cfg.paths.IMG_DIR,
         cfg.paths.MASKS_DIR,
@@ -129,10 +142,12 @@ def main(cfg):
         mode="min",
     )
 
+    tb_logger = TensorBoardLogger(save_dir=log_dir, name=today_date)
     trainer = Trainer(
         max_epochs=cfg.train.NUM_EPOCHS,
         log_every_n_steps=cfg.train.LOG_EVERY_N_STEPS,
         callbacks=[checkpoint_callback, early_stopping_callback],
+        logger=tb_logger,
     )
     trainer.fit(model, train_loader, val_loader)
 
