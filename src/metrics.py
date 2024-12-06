@@ -5,7 +5,7 @@ import hydra
 import numpy as np
 from PIL import Image
 
-from utils.extras import LABELS
+from utils.extras import LABELS, TITLE
 
 
 def pixel_accuracy(pred, label, num_classes):
@@ -126,7 +126,41 @@ def evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes):
     }
 
 
-def process_folders(pred_folder, gt_folder, num_classes=8, ignore_value=-1):
+def calculate_area_per_class(pred_mask, pred_file, num_classes, area_csv_path):
+    """
+    Calculate the area per class in the predicted mask and save it to a CSV file.
+    The CSV should have the following columns:
+    - ID
+    - Class
+    - Area
+
+    Args:
+        pred_mask (np.ndarray): The predicted mask
+        image_id (str): The ID of the image
+        num_classes (int): Number of classes in the dataset
+        area_csv_path (str): Path to where the CSV file will be saved
+    """
+    if pred_file.startswith("predmask_"):
+        pred_file = pred_file.replace("predmask_", "", 1)
+    
+    image_id = os.path.basename(pred_file).split(".")[0]
+    
+
+    if not os.path.exists(area_csv_path):
+        with open(area_csv_path, "w") as f:
+            f.write("ID,Class,Area\n")
+
+    # TODO: Find a better unit for the area, now its just based on the number of pixels
+    for cls in range(num_classes):
+        cls_mask = pred_mask == cls
+        area = np.sum(cls_mask)
+        with open(area_csv_path, "a") as f:
+            f.write(f"{image_id},{cls},{area}\n")
+
+
+def process_folders(
+    pred_folder, gt_folder, num_classes, area_csv_path, ignore_value=-1
+):
     metrics_list = []
 
     pred_files = sorted(glob.glob(pred_folder + "/*.tif"))
@@ -139,6 +173,7 @@ def process_folders(pred_folder, gt_folder, num_classes=8, ignore_value=-1):
         pred_mask, gt_mask = apply_ignore_index(pred_mask, gt_mask, ignore_value)
 
         metrics = evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes)
+        calculate_area_per_class(pred_mask, pred_file, num_classes, area_csv_path)
         metrics_list.append(metrics)
 
     return metrics_list
@@ -190,12 +225,17 @@ def aggregate_metrics(metrics_list):
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
+    print(TITLE)
     pred_folder = cfg.paths.PRED_TEST_MASKS
     gt_folder = cfg.paths.GT_TEST_MASKS
     num_classes = cfg.train.NUM_CLASSES
+    area_csv_path = cfg.paths.AREA_CSV_PATH
     ignore_value = -1
 
-    metrics_list = process_folders(pred_folder, gt_folder, num_classes, ignore_value)
+    metrics_list = process_folders(
+        pred_folder, gt_folder, num_classes, area_csv_path, ignore_value
+    )
+    print(f"Area per class for all images saved to {area_csv_path}")
     avg_metrics = aggregate_metrics(metrics_list)
 
     print("Average Metrics for all masks:")
