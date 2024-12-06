@@ -5,6 +5,7 @@ import hydra
 import numpy as np
 from PIL import Image
 
+from utils.extras import LABELS
 # TODO: Get an estimate of % or error on each class
 
 
@@ -168,7 +169,7 @@ def aggregate_metrics(metrics_list):
 def main(cfg):
     pred_folder = cfg.paths.PRED_TEST_MASKS
     gt_folder = cfg.paths.GT_TEST_MASKS
-    num_classes = 8
+    num_classes = 7
     ignore_value = -1
 
     metrics_list = process_folders(pred_folder, gt_folder, num_classes, ignore_value)
@@ -181,7 +182,8 @@ def main(cfg):
         else:
             print(f"{metric}:")
             for cls, cls_value in value.items():
-                print(f"  Class {cls}: {cls_value:.4f}")
+                cls_name = LABELS[cls]["name"]
+                print(f"  Class {cls_name}: {cls_value:.4f}")
 
 
 if __name__ == "__main__":
