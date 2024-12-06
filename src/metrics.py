@@ -6,13 +6,27 @@ import numpy as np
 from PIL import Image
 
 from utils.extras import LABELS
-# TODO: Get an estimate of % or error on each class
 
 
-def pixel_accuracy(pred, label):
-    correct = (pred == label).sum().item()
-    total = label.size
-    return correct / total
+def pixel_accuracy(pred, label, num_classes):
+    correct_per_class = np.zeros(num_classes)
+    total_per_class = np.zeros(num_classes)
+
+    for cls in range(num_classes):
+        cls_mask = label == cls
+        correct_per_class[cls] = np.sum((pred == cls) & cls_mask)
+        total_per_class[cls] = np.sum(cls_mask)
+
+    class_wise_accuracy = {
+        cls: correct_per_class[cls] / total_per_class[cls]
+        if total_per_class[cls] > 0
+        else np.nan
+        for cls in range(num_classes)
+    }
+
+    overall_accuracy = correct_per_class.sum() / total_per_class.sum()
+
+    return overall_accuracy, class_wise_accuracy
 
 
 def intersection_over_union(pred, label, num_classes):
@@ -87,11 +101,11 @@ def apply_ignore_index(pred, label, ignore_value=-1):
     return pred, label
 
 
-def evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes=8):
+def evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes):
     pred_mask = np.array(pred_mask)
     gt_mask = np.array(gt_mask)
 
-    pa = pixel_accuracy(pred_mask, gt_mask)
+    overall_pa, class_wise_pa = pixel_accuracy(pred_mask, gt_mask, num_classes)
     iou = intersection_over_union(pred_mask, gt_mask, num_classes)
     dice = dice_coefficient(pred_mask, gt_mask, num_classes)
     prec_per_class = precision(pred_mask, gt_mask, num_classes)
@@ -101,7 +115,8 @@ def evaluate_segmentation_metrics(pred_mask, gt_mask, num_classes=8):
     avg_recall = np.nanmean(list(rec_per_class.values()))
 
     return {
-        "Pixel Accuracy": pa,
+        "Pixel Accuracy (Overall)": overall_pa,
+        "Class-wise Pixel Accuracy": class_wise_pa,
         "Mean IoU": iou,
         "Mean Dice Coefficient": dice,
         "Precision": avg_precision,
@@ -135,7 +150,7 @@ def aggregate_metrics(metrics_list):
 
     # Aggregate non-class-wise metrics
     for key in [
-        "Pixel Accuracy",
+        "Pixel Accuracy (Overall)",
         "Mean IoU",
         "Mean Dice Coefficient",
         "Precision",
@@ -143,23 +158,31 @@ def aggregate_metrics(metrics_list):
     ]:
         avg_metrics[key] = sum(d[key] for d in metrics_list) / num_metrics
 
-    # Aggregate class-wise precision and recall
+    # Aggregate class-wise metrics
     class_precision = {
         cls: [] for cls in metrics_list[0]["Class-wise Precision"].keys()
     }
     class_recall = {cls: [] for cls in metrics_list[0]["Class-wise Recall"].keys()}
+    class_pixel_accuracy = {
+        cls: [] for cls in metrics_list[0]["Class-wise Pixel Accuracy"].keys()
+    }
 
     for metrics in metrics_list:
         for cls, value in metrics["Class-wise Precision"].items():
             class_precision[cls].append(value)
         for cls, value in metrics["Class-wise Recall"].items():
             class_recall[cls].append(value)
+        for cls, value in metrics["Class-wise Pixel Accuracy"].items():
+            class_pixel_accuracy[cls].append(value)
 
     avg_metrics["Class-wise Precision"] = {
         cls: np.nanmean(values) for cls, values in class_precision.items()
     }
     avg_metrics["Class-wise Recall"] = {
         cls: np.nanmean(values) for cls, values in class_recall.items()
+    }
+    avg_metrics["Class-wise Pixel Accuracy"] = {
+        cls: np.nanmean(values) for cls, values in class_pixel_accuracy.items()
     }
 
     return avg_metrics
@@ -169,7 +192,7 @@ def aggregate_metrics(metrics_list):
 def main(cfg):
     pred_folder = cfg.paths.PRED_TEST_MASKS
     gt_folder = cfg.paths.GT_TEST_MASKS
-    num_classes = 7
+    num_classes = cfg.train.NUM_CLASSES
     ignore_value = -1
 
     metrics_list = process_folders(pred_folder, gt_folder, num_classes, ignore_value)
@@ -177,7 +200,11 @@ def main(cfg):
 
     print("Average Metrics for all masks:")
     for metric, value in avg_metrics.items():
-        if metric not in ["Class-wise Precision", "Class-wise Recall"]:
+        if metric not in [
+            "Class-wise Precision",
+            "Class-wise Recall",
+            "Class-wise Pixel Accuracy",
+        ]:
             print(f"{metric}: {value:.4f}")
         else:
             print(f"{metric}:")
