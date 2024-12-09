@@ -1,8 +1,16 @@
+MODEL: 'deeplabv3' # or deeplabv3plus
+
 NUM_WORKERS: 4
 NUM_CLASSES: 7
 NUM_EPOCHS: 1000
 BATCH_SIZE: 16
+LOG_EVERY_N_STEPS: 15
 LR: 0.0001
 
 # Callbacks
 PATIENCE: 7
+
+# where to save model outputs, nothing will be overwritten
+# the python script generates a new folder with the current timestamp 
+# for each run
+LOG_DIR: 'lightning_logs'
