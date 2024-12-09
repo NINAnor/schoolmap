@@ -1,33 +1,34 @@
 #!/usr/env/bin python3
 
+from datetime import datetime
+from pathlib import Path
+
+import hydra
 import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 import torch.utils
 import torch.utils.data
 import torchmetrics
-import torchvision.models.segmentation as models
-import hydra
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 from torchmetrics.classification import MulticlassJaccardIndex
 
 from dataset.segmentation_dataset import get_data_loaders
+from utils.check_cuda import check_tensor_cores
+from utils.log_files import log_augmentations, log_train_cfg
+from utils.extras import title
+from utils.models import get_segmentation_model
 from utils.transforms import albumentations_transform, resize_transform
 
 torch.backends.cudnn.benchmark = True
 
 
-def get_deeplabv3_model(num_classes):
-    model = models.deeplabv3_resnet50(weights="COCO_WITH_VOC_LABELS_V1")
-    model.classifier[4] = torch.nn.Conv2d(256, num_classes, kernel_size=(1, 1))
-    return model
-
-
 class SegmentationModel(pl.LightningModule):
-    def __init__(self, num_classes, lr=1e-4):
+    def __init__(self, num_classes, lr=1e-4, model=None):
         super().__init__()
-        self.model = get_deeplabv3_model(num_classes)
+        self.model = model
         self.lr = lr
         self.num_classes = num_classes
 
@@ -57,7 +58,12 @@ class SegmentationModel(pl.LightningModule):
         self.val_iou = MulticlassJaccardIndex(num_classes=num_classes, ignore_index=-1)
 
     def forward(self, x):
-        return self.model(x)["out"]
+        model_name = self.model.__class__.__name__.lower()
+
+        if model_name == "deeplabv3":
+            return self.model(x)["out"]
+        else:
+            return self.model(x)
 
     def training_step(self, batch, batch_idx):
         images, masks = batch
@@ -99,6 +105,21 @@ class SegmentationModel(pl.LightningModule):
 
 @hydra.main(version_base=None, config_path="../configs", config_name="config")
 def main(cfg):
+    print(title)
+    
+    if torch.cuda.is_available():
+        check_tensor_cores()
+    else:
+        print("CUDA is not available on this system.")
+
+    # create output directory for logging
+    log_dir = Path(cfg.train.LOG_DIR)
+    today_date = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+    output_dir = log_dir / today_date
+
+    log_augmentations(albumentations_transform, resize_transform, output_dir)
+    log_train_cfg(cfg.train, output_dir)
+
     train_loader, val_loader = get_data_loaders(
         cfg.paths.IMG_DIR,
         cfg.paths.MASKS_DIR,
@@ -109,7 +130,11 @@ def main(cfg):
     )
 
     num_classes = cfg.train.NUM_CLASSES
-    model = SegmentationModel(num_classes=num_classes, lr=cfg.train.LR)
+    model = SegmentationModel(
+        num_classes=num_classes,
+        lr=cfg.train.LR,
+        model=get_segmentation_model(cfg.train.MODEL, num_classes),
+    )
 
     checkpoint_callback = ModelCheckpoint(monitor="val_loss")
 
@@ -120,9 +145,12 @@ def main(cfg):
         mode="min",
     )
 
+    tb_logger = TensorBoardLogger(save_dir=log_dir, name=today_date)
     trainer = Trainer(
         max_epochs=cfg.train.NUM_EPOCHS,
+        log_every_n_steps=cfg.train.LOG_EVERY_N_STEPS,
         callbacks=[checkpoint_callback, early_stopping_callback],
+        logger=tb_logger,
     )
     trainer.fit(model, train_loader, val_loader)
 

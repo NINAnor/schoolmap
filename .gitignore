@@ -178,6 +178,6 @@ pyrightconfig.json
 nina-python-init.py
 info_proj.txt
 lightning_logs/
-config.yaml
+.hydra/
 notebooks/
 .vscode/
