@@ -1,0 +1,3 @@
+defaults:
+  - paths: default
+  - dataset: default

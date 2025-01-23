@@ -1,6 +1,8 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python
 # Edit at https://www.toptal.com/developers/gitignore?templates=python
 
+outputs/
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -178,6 +180,5 @@ pyrightconfig.json
 nina-python-init.py
 info_proj.txt
 lightning_logs/
-config.yaml
 notebooks/
 .vscode/
