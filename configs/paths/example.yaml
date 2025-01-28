@@ -1,0 +1,14 @@
+# Data path for training
+MASK: "schoolmap/AIwork/trainval/labels_master_v3.geojson"
+MASKS_DIR:
+IMG_DIR: "schoolmap/AIwork/trainval/RETRIEVED_IMAGES"
+
+# Data path for testing
+PRED_TEST_MASKS:
+GT_TEST_MASKS:
+
+# Predicting the non-annotated dataset
+BOUNDING_BOXES: "data/schoolmap/AIwork/inference/schools_all_bounding_box.geojson"
+PREDICTED_MASKS: "data/schoolmap/AIwork/inference/PREDICTED"
+
+PREDICTED_MASKS_TIFF: "/data/P-Prosjekter2/154042_karlegging_av_uteomrader_i_skoler_hdir/AIwork/inference/PREDICTED_TIFF"
